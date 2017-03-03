@@ -3,21 +3,21 @@ namespace M8.VR {
     /// <summary>
     /// This is a generalized mapping of the VR buttons and axis to allow for porting to various devices via derivatives of InputManager (e.g. InputManagerSteamVR).
     /// </summary>
-    [System.Flags]
     public enum ControlMap {
-        None = 0x0,
-
-
-    }
-    
-    public enum Hand {
         None = -1,
 
-        Left,
-        Right,
+        Menu,
 
-        Both,
+        System, //This is overriden by Valve to open up Steam
 
-        Any
+        TrackpadPress,
+        TrackpadTouch,
+        TrackpadX, //Axis X [-1, 1]
+        TrackpadY, //Axis Y [-1, 1]
+
+        TriggerPress,
+        Trigger, //Axis [0, 1]
+
+        Grip
     }
 }
