@@ -78,6 +78,26 @@ namespace M8.VR {
         /// </summary>
         public abstract Vector3 GetTrackedAngularVelocity();
 
+        /// <summary>
+        /// Get the current axis. For 1D axis, use X
+        /// </summary>
+        public abstract Vector2 GetAxis(ControlMap axis);
+        
+        /// <summary>
+        /// Check if given button is held down
+        /// </summary>
+        public abstract bool GetButtonDown(ControlMap button);
+
+        /// <summary>
+        /// Check if button was pressed from last frame
+        /// </summary>
+        public abstract bool GetButtonPressed(ControlMap button);
+
+        /// <summary>
+        /// Check if button was released from last frame
+        /// </summary>
+        public abstract bool GetButtonReleased(ControlMap button);
+
         protected virtual Hand GuessCurrentHand() {
             return Hand.Right;
         }
@@ -104,4 +124,37 @@ namespace M8.VR {
                 initializedCallback(this);
         }
     }
+
+#if UNITY_EDITOR
+    //-------------------------------------------------------------------------
+    [UnityEditor.CustomEditor(typeof(Controller), true)]
+    public class ControllerInspector : UnityEditor.Editor {
+        //-------------------------------------------------
+        // Custom Inspector GUI allows us to click from within the UI
+        //-------------------------------------------------
+        public override void OnInspectorGUI() {
+            DrawDefaultInspector();
+
+            Controller ctrl = (Controller)target;
+
+            if(ctrl.otherController) {
+                if(ctrl.otherController.otherController != ctrl) {
+                    UnityEditor.EditorGUILayout.HelpBox("The otherController of this Controller's otherController is not this Controller.", UnityEditor.MessageType.Warning);
+                }
+
+                if(ctrl.startingHand == Controller.Hand.Left && ctrl.otherController.startingHand != Controller.Hand.Right) {
+                    UnityEditor.EditorGUILayout.HelpBox("This is a left Hand but otherController is not a right Hand.", UnityEditor.MessageType.Warning);
+                }
+
+                if(ctrl.startingHand == Controller.Hand.Right && ctrl.otherController.startingHand != Controller.Hand.Left) {
+                    UnityEditor.EditorGUILayout.HelpBox("This is a right Hand but otherController is not a left Hand.", UnityEditor.MessageType.Warning);
+                }
+
+                if(ctrl.startingHand == Controller.Hand.Any && ctrl.otherController.startingHand != Controller.Hand.Any) {
+                    UnityEditor.EditorGUILayout.HelpBox("This is an any-handed Hand but otherController is not an any-handed Hand.", UnityEditor.MessageType.Warning);
+                }
+            }
+        }
+    }
+#endif
 }

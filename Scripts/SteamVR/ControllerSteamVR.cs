@@ -14,7 +14,7 @@ namespace M8.VR {
         private SteamVR_Events.Action mInputFocusAction;
 
         public override Vector3 GetTrackedVelocity() {
-            if(mDevice != null) {
+            if(mIsDeviceAvailable) {
                 return transform.parent.TransformVector(mDevice.velocity);
             }
 
@@ -22,11 +22,94 @@ namespace M8.VR {
         }
         
         public override Vector3 GetTrackedAngularVelocity() {
-            if(mDevice != null) {
+            if(mIsDeviceAvailable) {
                 return transform.parent.TransformVector(mDevice.angularVelocity);
             }
 
             return Vector3.zero;
+        }
+        
+        public override Vector2 GetAxis(ControlMap axis) {
+            if(mIsDeviceAvailable) {
+                switch(axis) {
+                    case ControlMap.Touchpad:
+                        return mDevice.GetAxis(Valve.VR.EVRButtonId.k_EButton_Axis0);
+
+                    case ControlMap.Trigger:
+                        return mDevice.GetAxis(Valve.VR.EVRButtonId.k_EButton_Axis1);
+                }
+            }
+
+            return Vector2.zero;
+        }
+        
+        public override bool GetButtonDown(ControlMap button) {
+            if(mIsDeviceAvailable) {
+                switch(button) {
+                    case ControlMap.System:
+                        return mDevice.GetPress(SteamVR_Controller.ButtonMask.System);
+
+                    case ControlMap.Menu:
+                        return mDevice.GetPress(SteamVR_Controller.ButtonMask.ApplicationMenu);
+
+                    case ControlMap.Touchpad:
+                        return mDevice.GetPress(SteamVR_Controller.ButtonMask.Touchpad);
+
+                    case ControlMap.Trigger:
+                        return mDevice.GetHairTrigger();
+
+                    case ControlMap.Grip:
+                        return mDevice.GetPress(SteamVR_Controller.ButtonMask.Grip);
+                }
+            }
+
+            return false;
+        }
+        
+        public override bool GetButtonPressed(ControlMap button) {
+            if(mIsDeviceAvailable) {
+                switch(button) {
+                    case ControlMap.System:
+                        return mDevice.GetPressDown(SteamVR_Controller.ButtonMask.System);
+
+                    case ControlMap.Menu:
+                        return mDevice.GetPressDown(SteamVR_Controller.ButtonMask.ApplicationMenu);
+
+                    case ControlMap.Touchpad:
+                        return mDevice.GetPressDown(SteamVR_Controller.ButtonMask.Touchpad);
+
+                    case ControlMap.Trigger:
+                        return mDevice.GetHairTriggerDown();
+
+                    case ControlMap.Grip:
+                        return mDevice.GetPressDown(SteamVR_Controller.ButtonMask.Grip);
+                }
+            }
+
+            return false;
+        }
+        
+        public override bool GetButtonReleased(ControlMap button) {
+            if(mIsDeviceAvailable) {
+                switch(button) {
+                    case ControlMap.System:
+                        return mDevice.GetPressUp(SteamVR_Controller.ButtonMask.System);
+
+                    case ControlMap.Menu:
+                        return mDevice.GetPressUp(SteamVR_Controller.ButtonMask.ApplicationMenu);
+
+                    case ControlMap.Touchpad:
+                        return mDevice.GetPressUp(SteamVR_Controller.ButtonMask.Touchpad);
+
+                    case ControlMap.Trigger:
+                        return mDevice.GetHairTriggerUp();
+
+                    case ControlMap.Grip:
+                        return mDevice.GetPressUp(SteamVR_Controller.ButtonMask.Grip);
+                }
+            }
+
+            return false;
         }
 
         protected override Hand GuessCurrentHand() {

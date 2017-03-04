@@ -6,18 +6,16 @@ namespace M8.VR {
     public enum ControlMap {
         None = -1,
 
-        Menu,
-
         System, //This is overriden by Valve to open up Steam
 
-        TrackpadPress,
-        TrackpadTouch,
-        TrackpadX, //Axis X [-1, 1]
-        TrackpadY, //Axis Y [-1, 1]
+        Menu,
+                
+        Touchpad, //Button, 2D Axis [-1, 1]
 
-        TriggerPress,
-        Trigger, //Axis [0, 1]
+        Trigger, //Button, 1D Axis [0, 1]
 
-        Grip
-    }
+        Grip,
+
+        //dpad?
+    }    
 }
