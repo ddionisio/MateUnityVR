@@ -1,8 +1,16 @@
-﻿using System.Collections;
+﻿//=============================================================================
+// Based on parts of Hand.cs
+// Copyright (c) Valve Corporation, All rights reserved.
+//=============================================================================
+
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
 namespace M8.VR {
+    /// <summary>
+    /// Controller features, generally there are two of these for each hand.
+    /// </summary>
     [AddComponentMenu("")]
     public abstract class Controller : MonoBehaviour {
         public enum Hand {
@@ -109,16 +117,22 @@ namespace M8.VR {
             if(mPrefabInstance)
                 Object.Destroy(mPrefabInstance);
 
-            mPrefabInstance = GameObject.Instantiate(prefab);
+            mPrefabInstance = GameObject.Instantiate(prefab, transform, false);
             mPrefabInstance.SetActive(true);
             mPrefabInstance.name = prefab.name + "_" + name;
-            mPrefabInstance.transform.SetParent(transform, false);
 
             mPrefabInstance.transform.localPosition = Vector3.zero;
             mPrefabInstance.transform.localRotation = Quaternion.identity;
             mPrefabInstance.transform.localScale = prefab.transform.localScale;
 
             //controller.TriggerHapticPulse(800);
+
+            //grab initialize interfaces to indicate initialization
+            var comps = GetComponentsInChildren<MonoBehaviour>(true);
+            for(int i = 0; i < comps.Length; i++) {
+                if(comps[i] is IControllerInitialize)
+                    ((IControllerInitialize)comps[i]).OnInitialized(this);
+            }
 
             if(initializedCallback != null)
                 initializedCallback(this);
