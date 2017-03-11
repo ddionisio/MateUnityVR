@@ -10,7 +10,9 @@ using UnityEngine;
 namespace M8.VR {
     [AddComponentMenu("M8/VR Steam/Controller")]
     public class ControllerSteamVR : Controller {
-        
+
+        public override int deviceID { get { return mIsDeviceAvailable ? (int)mDevice.index : -1; } }
+
         public SteamVR_Controller.Device device { get { return mDevice; } }
 
         
