@@ -4,7 +4,11 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.EventSystems;
 
-namespace M8.VR {
+namespace M8.VR.EventSystems {
+    /// <summary>
+    /// Use this to filter Unity's Event System with the Controllers.
+    /// </summary>
+    [AddComponentMenu("M8/VR Event/InputModule")]
     public class InputModule : BaseInputModule {
         public const int hitCastCacheCount = 8;
 
@@ -27,14 +31,13 @@ namespace M8.VR {
         /// <summary>
         /// key = id, value = PointerEventData
         /// </summary>
-        protected Dictionary<int, PointerEventData> mPointerData = new Dictionary<int, PointerEventData>();
-        protected Dictionary<int, Canvas> mPointerCanvas = new Dictionary<int, Canvas>();
+        protected Dictionary<int, Pointer3DEventData> mPointerData = new Dictionary<int, Pointer3DEventData>();
 
         protected Vector3[] mCanvasWorldCorners = new Vector3[4]; //BottomLeft, TopLeft, TopRight, BottomRight
                 
-        protected bool GetPointerData(int id, out PointerEventData data, bool create) {
+        protected bool GetPointerData(int id, out Pointer3DEventData data, bool create) {
             if(!mPointerData.TryGetValue(id, out data) && create) {
-                data = new PointerEventData(eventSystem) {
+                data = new Pointer3DEventData(eventSystem) {
                     pointerId = id,
                 };
                 mPointerData.Add(id, data);
@@ -43,15 +46,12 @@ namespace M8.VR {
             return false;
         }
 
-        protected void RemovePointerData(PointerEventData data) {
+        protected void RemovePointerData(Pointer3DEventData data) {
             mPointerData.Remove(data.pointerId);
-
-            if(mPointerCanvas.ContainsKey(data.pointerId))
-                mPointerCanvas.Remove(data.pointerId);
         }
-
-        protected PointerEventData GetControllerPointerEventData(Controller ctrl, out bool pressed, out bool released) {
-            PointerEventData pointerData;
+        
+        protected Pointer3DEventData GetControllerPointerEventData(Controller ctrl, out bool pressed, out bool released) {
+            Pointer3DEventData pointerData;
             var created = GetPointerData(ctrl.deviceID, out pointerData, true);
 
             pointerData.Reset();
@@ -90,7 +90,7 @@ namespace M8.VR {
                 Canvas canvasHit = null;
 
                 if(ctrl.GetButtonDown(leftClick)) { //grab from previous
-                    mPointerCanvas.TryGetValue(ctrl.deviceID, out canvasHit);
+                    canvasHit = pointerData.canvas;
                 }
 
                 if(!canvasHit) {
@@ -99,10 +99,7 @@ namespace M8.VR {
                         canvasHit = canvasHit.rootCanvas;
 
                         //cache canvas
-                        if(mPointerCanvas.ContainsKey(ctrl.deviceID))
-                            mPointerCanvas[ctrl.deviceID] = canvasHit;
-                        else
-                            mPointerCanvas.Add(ctrl.deviceID, canvasHit);
+                        pointerData.canvas = canvasHit;
                     }
                 }
 
@@ -146,8 +143,20 @@ namespace M8.VR {
                 result = new RaycastResult();
             //
 
-            pointerData.pointerCurrentRaycast = result;
+            //process world delta
+            if(pressed) {
+                pointerData.pointerPressRaycast = result;
+                pointerData.worldDelta = Vector3.zero;
+            }
+            else {
+                if(result.gameObject && pointerData.pointerCurrentRaycast.gameObject)
+                    pointerData.worldDelta = result.worldPosition - pointerData.pointerCurrentRaycast.worldPosition;
+                else
+                    pointerData.worldDelta = Vector3.zero;
+            }
 
+            pointerData.pointerCurrentRaycast = result;
+                        
             return pointerData;
         }
 
@@ -160,7 +169,6 @@ namespace M8.VR {
             }
 
             mPointerData.Clear();
-            mPointerCanvas.Clear();
             eventSystem.SetSelectedGameObject(null, baseEventData);
         }
 
@@ -173,32 +181,38 @@ namespace M8.VR {
                 eventSystem.SetSelectedGameObject(null, pointerEvent);
         }
 
-        protected PointerEventData GetLastPointerEventData(int id) {
-            PointerEventData data;
+        protected Pointer3DEventData GetLastPointerEventData(int id) {
+            Pointer3DEventData data;
             GetPointerData(id, out data, false);
             return data;
         }
 
-        private static bool ShouldStartDrag(Vector2 pressPos, Vector2 currentPos, float threshold, bool useDragThreshold) {
-            if(!useDragThreshold)
+        private static bool ShouldStartDrag(Pointer3DEventData ptr, float threshold) {
+            if(!ptr.useDragThreshold)
                 return true;
 
-            return (pressPos - currentPos).sqrMagnitude >= threshold * threshold;
+            if(ptr.canvas)
+                return (ptr.pressPosition - ptr.position).sqrMagnitude >= threshold * threshold;
+
+            if(ptr.pointerPressRaycast.gameObject && ptr.pointerCurrentRaycast.gameObject)
+                return (ptr.pointerPressRaycast.worldPosition - ptr.pointerCurrentRaycast.worldPosition).sqrMagnitude >= threshold * threshold;
+
+            return false;
         }
 
-        protected virtual void ProcessMove(PointerEventData pointerEvent) {
+        protected virtual void ProcessMove(Pointer3DEventData pointerEvent) {
             var targetGO = (Cursor.lockState == CursorLockMode.Locked ? null : pointerEvent.pointerCurrentRaycast.gameObject);
             HandlePointerExitAndEnter(pointerEvent, targetGO);
         }
 
-        protected virtual void ProcessDrag(PointerEventData pointerEvent) {
+        protected virtual void ProcessDrag(Pointer3DEventData pointerEvent) {
             if(!pointerEvent.IsPointerMoving() ||
                 Cursor.lockState == CursorLockMode.Locked ||
                 pointerEvent.pointerDrag == null)
                 return;
 
             if(!pointerEvent.dragging
-                && ShouldStartDrag(pointerEvent.pressPosition, pointerEvent.position, dragThreshold, pointerEvent.useDragThreshold)) {
+                && ShouldStartDrag(pointerEvent, dragThreshold)) {
                 ExecuteEvents.Execute(pointerEvent.pointerDrag, pointerEvent, ExecuteEvents.beginDragHandler);
                 pointerEvent.dragging = true;
             }
@@ -225,9 +239,10 @@ namespace M8.VR {
             return false;
         }
 
-        protected void CopyFromTo(PointerEventData @from, PointerEventData @to) {
+        protected void CopyFromTo(Pointer3DEventData @from, Pointer3DEventData @to) {
             @to.position = @from.position;
             @to.delta = @from.delta;
+            @to.worldDelta = @from.worldDelta;
             @to.scrollDelta = @from.scrollDelta;
             @to.pointerCurrentRaycast = @from.pointerCurrentRaycast;
             @to.pointerEnter = @from.pointerEnter;
@@ -276,7 +291,7 @@ namespace M8.VR {
             }
         }
 
-        protected void ProcessPress(PointerEventData pointerEvent, bool pressed, bool released) {
+        protected void ProcessPress(Pointer3DEventData pointerEvent, bool pressed, bool released) {
             var currentOverGo = pointerEvent.pointerCurrentRaycast.gameObject;
 
             // PointerDown notification

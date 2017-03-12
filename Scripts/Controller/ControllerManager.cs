@@ -87,6 +87,21 @@ namespace M8.VR {
             return null;
         }
 
+        public Controller GetActiveByDeviceID(int deviceID) {
+            for(int j = 0; j < controllers.Length; j++) {
+                if(!controllers[j].isDeviceAvailable)
+                    continue;
+
+                if(!controllers[j].gameObject.activeInHierarchy)
+                    continue;
+
+                if(controllers[j].deviceID == deviceID)
+                    return controllers[j];
+            }
+
+            return null;
+        }
+
         protected override void OnInstanceDeinit() {
             
         }
