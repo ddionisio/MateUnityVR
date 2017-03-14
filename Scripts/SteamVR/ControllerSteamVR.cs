@@ -10,12 +10,11 @@ using UnityEngine;
 namespace M8.VR {
     [AddComponentMenu("M8/VR Steam/Controller")]
     public class ControllerSteamVR : Controller {
+        
+        public SteamVR_Controller.Device device { get { return mDevice; } }
 
         public override int deviceID { get { return mIsDeviceAvailable ? (int)mDevice.index : -1; } }
 
-        public SteamVR_Controller.Device device { get { return mDevice; } }
-
-        
         private SteamVR_Controller.Device mDevice;
 
         private SteamVR_Events.Action mInputFocusAction;
@@ -63,7 +62,8 @@ namespace M8.VR {
                         return mDevice.GetPress(SteamVR_Controller.ButtonMask.Touchpad);
 
                     case ControlMap.Trigger:
-                        return mDevice.GetHairTrigger();
+                        //return mDevice.GetHairTrigger();
+                        return mDevice.GetPress(SteamVR_Controller.ButtonMask.Trigger);
 
                     case ControlMap.Grip:
                         return mDevice.GetPress(SteamVR_Controller.ButtonMask.Grip);
@@ -86,7 +86,8 @@ namespace M8.VR {
                         return mDevice.GetPressDown(SteamVR_Controller.ButtonMask.Touchpad);
 
                     case ControlMap.Trigger:
-                        return mDevice.GetHairTriggerDown();
+                        //return mDevice.GetHairTriggerDown();
+                        return mDevice.GetPressDown(SteamVR_Controller.ButtonMask.Trigger);
 
                     case ControlMap.Grip:
                         return mDevice.GetPressDown(SteamVR_Controller.ButtonMask.Grip);
@@ -109,7 +110,8 @@ namespace M8.VR {
                         return mDevice.GetPressUp(SteamVR_Controller.ButtonMask.Touchpad);
 
                     case ControlMap.Trigger:
-                        return mDevice.GetHairTriggerUp();
+                        //return mDevice.GetHairTriggerUp();
+                        return mDevice.GetPressUp(SteamVR_Controller.ButtonMask.Trigger);
 
                     case ControlMap.Grip:
                         return mDevice.GetPressUp(SteamVR_Controller.ButtonMask.Grip);
@@ -138,7 +140,7 @@ namespace M8.VR {
         void Awake() {
             mInputFocusAction = SteamVR_Events.InputFocusAction(OnInputFocus);
         }
-
+        
         IEnumerator Start() {
             // Acquire the correct device index for the hand we want to be
             // Also for the other hand if we get there first
@@ -210,6 +212,9 @@ namespace M8.VR {
         }
 
         void FixedUpdate() {
+            if(mIsDeviceAvailable)
+                mDevice.Update();
+
             UpdateHandPoses();
         }
 

@@ -32,7 +32,7 @@ namespace M8.VR {
         public bool isDeviceAvailable { get { return mIsDeviceAvailable; } }
 
         public virtual int deviceID { get { return -1; } }
-
+        
         public bool isInputFocus {
             get {
                 return mIsInputFocus;

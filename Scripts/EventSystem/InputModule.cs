@@ -7,11 +7,10 @@ using UnityEngine.EventSystems;
 namespace M8.VR.EventSystems {
     /// <summary>
     /// Use this to filter Unity's Event System with the Controllers.
+    /// Ensure you add RayCasts only specific to VR
     /// </summary>
     [AddComponentMenu("M8/VR Event/InputModule")]
     public class InputModule : BaseInputModule {
-        public const int hitCastCacheCount = 8;
-
         [SerializeField]
         bool _forceModuleActive;
 
@@ -52,111 +51,62 @@ namespace M8.VR.EventSystems {
         
         protected Pointer3DEventData GetControllerPointerEventData(Controller ctrl, out bool pressed, out bool released) {
             Pointer3DEventData pointerData;
-            var created = GetPointerData(ctrl.deviceID, out pointerData, true);
+            GetPointerData(ctrl.deviceID, out pointerData, true);
 
             pointerData.Reset();
 
-            pressed = created || ctrl.GetButtonPressed(leftClick);
+            pressed = ctrl.GetButtonPressed(leftClick);
             released = ctrl.GetButtonReleased(leftClick);
             
             pointerData.button = PointerEventData.InputButton.Left;
 
-            //
-            //ray cast objects
-            var origin = ctrl.transform.position;
-            var dir = ctrl.transform.forward;
-            var dist = distance < 0f ? Mathf.Infinity : distance;
+            //ensure there is at least one proper ray caster for this
+            eventSystem.RaycastAll(pointerData, m_RaycastResultCache);
 
-            RaycastHit hit;
-            RaycastResult result;
+            var raycast = FindFirstRaycast(m_RaycastResultCache);            
+            m_RaycastResultCache.Clear();
 
-            if(Physics.Raycast(origin, dir, out hit, dist, layerMask)) {
-                var go = hit.collider.gameObject;
-                var posHit = hit.point;
-
-                //grab proper result
-                result = new RaycastResult {
-                    gameObject = go,
-                    module = null,
-                    distance = hit.distance,
-                    worldPosition = posHit,
-                    worldNormal = hit.normal,
-                    //screenPosition = eventData.position,
-                    index = m_RaycastResultCache.Count,
-                    sortingLayer = 0,
-                    sortingOrder = 0
-                };
-
-                Canvas canvasHit = null;
-
-                if(ctrl.GetButtonDown(leftClick)) { //grab from previous
-                    canvasHit = pointerData.canvas;
-                }
-
-                if(!canvasHit) {
-                    canvasHit = go.GetComponentInParent<Canvas>();
-                    if(canvasHit) {
-                        canvasHit = canvasHit.rootCanvas;
-
-                        //cache canvas
-                        pointerData.canvas = canvasHit;
-                    }
-                }
-
+            //compute 2D position and delta
+            if(raycast.gameObject) {
+                var canvasHit = raycast.gameObject.GetComponentInParent<Canvas>();
+                if(canvasHit)
+                    canvasHit = canvasHit.rootCanvas;
+                
                 //grab 2D position
-                if(canvasHit) {
-                    //convert 3d position to rect world space (via canvas (need origin)), apply to pointerData.position and delta
-                    var rectT = canvasHit.GetComponent<RectTransform>();
-                    rectT.GetWorldCorners(mCanvasWorldCorners);
-
-                    //grab center based on pivot
-                    var quadRight = Vector3.Lerp(mCanvasWorldCorners[0], mCanvasWorldCorners[3], rectT.pivot.x);
-                    var quadUp = Vector3.Lerp(mCanvasWorldCorners[0], mCanvasWorldCorners[1], rectT.pivot.y);                    
-                    var center = quadUp + quadRight;
-
-                    Vector3 up = rectT.up, right = rectT.right;
-
-                    Vector3 dpos = posHit - center;
-
-                    Vector2 plainPt = new Vector2(Vector3.Dot(up, dpos), Vector3.Dot(right, dpos));
-
-                    result.screenPosition = plainPt; //not quite screen position, but what are you gonna do
-                    
+                if(pointerData.canvas == canvasHit && canvasHit) {
                     // generate position/delta for pointer
-                    if(created)
-                        pointerData.position = plainPt;
-
                     if(pressed)
                         pointerData.delta = Vector2.zero;
                     else
-                        pointerData.delta = plainPt - pointerData.position;
-
-                    pointerData.position = plainPt;
+                        pointerData.delta = raycast.screenPosition - pointerData.position;
                     //
                 }
                 else {
-                    result.screenPosition = pointerData.position;
+                    pointerData.canvas = canvasHit;
                     pointerData.delta = Vector2.zero;
                 }
+
+                pointerData.position = raycast.screenPosition;
             }
             else
-                result = new RaycastResult();
+                pointerData.delta = Vector2.zero;
             //
 
             //process world delta
             if(pressed) {
-                pointerData.pointerPressRaycast = result;
+                pointerData.pointerPressRaycast = raycast;
                 pointerData.worldDelta = Vector3.zero;
             }
             else {
-                if(result.gameObject && pointerData.pointerCurrentRaycast.gameObject)
-                    pointerData.worldDelta = result.worldPosition - pointerData.pointerCurrentRaycast.worldPosition;
+                if(raycast.gameObject && pointerData.pointerCurrentRaycast.gameObject)
+                    pointerData.worldDelta = raycast.worldPosition - pointerData.pointerCurrentRaycast.worldPosition;
                 else
                     pointerData.worldDelta = Vector3.zero;
             }
+            //
 
-            pointerData.pointerCurrentRaycast = result;
-                        
+            pointerData.pointerCurrentRaycast = raycast;
+
             return pointerData;
         }
 
@@ -305,11 +255,11 @@ namespace M8.VR.EventSystems {
 
                 DeselectIfSelectionChanged(currentOverGo, pointerEvent);
 
-                if(pointerEvent.pointerEnter != currentOverGo) {
+                /*if(pointerEvent.pointerEnter != currentOverGo) {
                     // send a pointer enter to the touched element if it isn't the one to select...
                     HandlePointerExitAndEnter(pointerEvent, currentOverGo);
                     pointerEvent.pointerEnter = currentOverGo;
-                }
+                }*/
 
                 // search for the control that will receive the press
                 // if we can't find a press handler set the press
@@ -351,7 +301,7 @@ namespace M8.VR.EventSystems {
 
             // PointerUp notification
             if(released) {
-                // Debug.Log("Executing pressup on: " + pointer.pointerPress);
+                // Debug.Log("Executing pressup on: " + pointerEvent.pointerPress);
                 ExecuteEvents.Execute(pointerEvent.pointerPress, pointerEvent, ExecuteEvents.pointerUpHandler);
 
                 // Debug.Log("KeyCode: " + pointer.eventData.keyCode);
@@ -377,14 +327,14 @@ namespace M8.VR.EventSystems {
                 pointerEvent.dragging = false;
                 pointerEvent.pointerDrag = null;
 
-                if(pointerEvent.pointerDrag != null)
-                    ExecuteEvents.Execute(pointerEvent.pointerDrag, pointerEvent, ExecuteEvents.endDragHandler);
-
-                pointerEvent.pointerDrag = null;
-
-                // send exit events as we need to simulate this on touch up on touch device
-                ExecuteEvents.ExecuteHierarchy(pointerEvent.pointerEnter, pointerEvent, ExecuteEvents.pointerExitHandler);
-                pointerEvent.pointerEnter = null;
+                // redo pointer enter / exit to refresh state
+                // so that if we moused over something that ignored it before
+                // due to having pressed on something else
+                // it now gets it.
+                if(currentOverGo != pointerEvent.pointerEnter) {
+                    HandlePointerExitAndEnter(pointerEvent, null);
+                    HandlePointerExitAndEnter(pointerEvent, currentOverGo);
+                }
             }
         }
 
