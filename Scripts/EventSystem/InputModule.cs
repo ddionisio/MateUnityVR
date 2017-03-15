@@ -211,7 +211,7 @@ namespace M8.VR.EventSystems {
             if(forceModuleActive)
                 return true;
             
-            if(ControllerManager.instance.activeCount > 0)
+            if(ControllerManager.instance.activeControllerCount > 0)
                 return true;
 
             return false;
@@ -220,7 +220,7 @@ namespace M8.VR.EventSystems {
         public override void Process() {
             var ctrlMgr = ControllerManager.instance;
             
-            for(int i = 0; i < ctrlMgr.activeCount; ++i) {
+            for(int i = 0; i < ctrlMgr.activeControllerCount; ++i) {
                 var ctrl = ctrlMgr.GetActive(i);
 
                 if(!ctrl.isDeviceAvailable)
