@@ -21,19 +21,23 @@ namespace M8.VR.EventSystems {
 
         public ControlMap leftClick = ControlMap.Trigger;
         public LayerMask layerMask;
-
-        [Tooltip("How far to check for collision, use -1 for infinite distance.")]
-        public float distance = -1f;
-
+        
         public float dragThreshold = 0.1f;
+
+        /// <summary>
+        /// Enter object has changed, provides previous enter object.
+        /// </summary>
+        public event Action<Pointer3DEventData, GameObject> enterChangedCallback;
+
+        public static InputModule instance { get { return mInstance; } }
 
         /// <summary>
         /// key = id, value = PointerEventData
         /// </summary>
         protected Dictionary<int, Pointer3DEventData> mPointerData = new Dictionary<int, Pointer3DEventData>();
 
-        protected Vector3[] mCanvasWorldCorners = new Vector3[4]; //BottomLeft, TopLeft, TopRight, BottomRight
-                
+        private static InputModule mInstance;
+
         protected bool GetPointerData(int id, out Pointer3DEventData data, bool create) {
             if(!mPointerData.TryGetValue(id, out data) && create) {
                 data = new Pointer3DEventData(eventSystem) {
@@ -151,8 +155,15 @@ namespace M8.VR.EventSystems {
         }
 
         protected virtual void ProcessMove(Pointer3DEventData pointerEvent) {
+            var lastPointerEnter = pointerEvent.pointerEnter;
+
             var targetGO = (Cursor.lockState == CursorLockMode.Locked ? null : pointerEvent.pointerCurrentRaycast.gameObject);
             HandlePointerExitAndEnter(pointerEvent, targetGO);
+
+            if(pointerEvent.pointerEnter != lastPointerEnter) {
+                if(enterChangedCallback != null)
+                    enterChangedCallback(pointerEvent, lastPointerEnter);
+            }
         }
 
         protected virtual void ProcessDrag(Pointer3DEventData pointerEvent) {
@@ -255,11 +266,16 @@ namespace M8.VR.EventSystems {
 
                 DeselectIfSelectionChanged(currentOverGo, pointerEvent);
 
-                /*if(pointerEvent.pointerEnter != currentOverGo) {
+                if(pointerEvent.pointerEnter != currentOverGo) {
+                    var lastPointerEnter = pointerEvent.pointerEnter;
+
                     // send a pointer enter to the touched element if it isn't the one to select...
                     HandlePointerExitAndEnter(pointerEvent, currentOverGo);
                     pointerEvent.pointerEnter = currentOverGo;
-                }*/
+
+                    if(enterChangedCallback != null)
+                        enterChangedCallback(pointerEvent, lastPointerEnter);
+                }
 
                 // search for the control that will receive the press
                 // if we can't find a press handler set the press
@@ -332,8 +348,15 @@ namespace M8.VR.EventSystems {
                 // due to having pressed on something else
                 // it now gets it.
                 if(currentOverGo != pointerEvent.pointerEnter) {
+                    var lastPointerEnter = pointerEvent.pointerEnter;
+
                     HandlePointerExitAndEnter(pointerEvent, null);
                     HandlePointerExitAndEnter(pointerEvent, currentOverGo);
+
+                    if(pointerEvent.pointerEnter != lastPointerEnter) {
+                        if(enterChangedCallback != null)
+                            enterChangedCallback(pointerEvent, lastPointerEnter);
+                    }
                 }
             }
         }
@@ -349,6 +372,20 @@ namespace M8.VR.EventSystems {
             foreach(var pointerEventData in mPointerData)
                 sb.AppendLine(pointerEventData.ToString());
             return sb.ToString();
+        }
+
+        protected override void OnDestroy() {
+            base.OnDestroy();
+
+            if(mInstance == this)
+                mInstance = null;
+        }
+
+        protected override void Awake() {
+            if(mInstance == null)
+                mInstance = this;
+
+            base.Awake();
         }
     }
 }

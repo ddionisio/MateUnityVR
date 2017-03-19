@@ -8,7 +8,7 @@ using UnityEngine.EventSystems;
 using UnityEngine.Serialization;
 
 namespace M8.VR.EventSystems {
-    [AddComponentMenu("Event/Graphic Raycaster")]
+    [AddComponentMenu("M8/VR Event/Graphic Raycaster")]
     [RequireComponent(typeof(Canvas))]
     public class GraphicRaycaster : BaseRaycaster {
         protected const int kNoEventMaskSet = -1;
